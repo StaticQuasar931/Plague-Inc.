@@ -14,17 +14,15 @@
   <meta name="theme-color" content="#000000" />
   <link rel="icon" type="image/png" href="https://cdn.jsdelivr.net/gh/StaticQuasar931/Images@main/icon.png" />
 
-  <title>Pandemic Simulator – StaticQuasar931 Unblocked Games</title>
+  <title>Plague-Inc. (Pandemic Simulator) – StaticQuasar931 Unblocked Games</title>
 
-  <!-- Canonical: set to your published URL once you know it (GitHub Pages or Google Sites) -->
-  <link rel="canonical" href="./" />
+  <link rel="canonical" href="https://staticquasar931.github.io/Plague-Inc./" />
 
-  <!-- Optional social -->
-  <meta property="og:title" content="Pandemic Simulator – StaticQuasar931 Unblocked Games" />
-  <meta property="og:description" content="Play Pandemic Simulator in your browser. Fullscreen, school-friendly, and optimized for Chromebooks. More unblocked games by StaticQuasar931 included." />
+  <meta name="description" content="Play Plague-Inc. (Pandemic Simulator) unblocked in your browser. Fullscreen, school-friendly, and Chromebook-ready. More unblocked games by StaticQuasar931." />
+  <meta property="og:title" content="Plague-Inc. (Pandemic Simulator) – StaticQuasar931 Unblocked Games" />
+  <meta property="og:description" content="Play Plague-Inc. (Pandemic Simulator) unblocked. Fullscreen and school-friendly, optimized for Chromebooks." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="./" />
-  <meta name="description" content="Play Pandemic Simulator (unblocked) in your browser. Fullscreen and school-friendly. More unblocked games by StaticQuasar931." />
+  <meta property="og:url" content="https://staticquasar931.github.io/Plague-Inc./" />
 
   <style>
     :root{
@@ -50,6 +48,22 @@
       touch-action:none;
       -ms-touch-action:none;
       display:block;
+    }
+
+    /* Optional: tap-to-enable audio banner (hidden after first interaction) */
+    #audioTapHint{
+      position:fixed; left:50%; top:14px; transform:translateX(-50%);
+      z-index:9998;
+      padding:10px 14px;
+      border-radius:12px;
+      background:rgba(0,0,0,.65);
+      border:1px solid rgba(255,255,255,.12);
+      color:#eaf4ff;
+      font-size:13px;
+      box-shadow:0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+      display:none;
+      user-select:none;
     }
 
     /* Static Menu (top-left) */
@@ -94,6 +108,7 @@
     @media (max-width:600px){
       #staticMenu{ font-size:13px; padding:8px 12px }
       #staticSlideMenu{ width:88px; height:88px; right:18px; bottom:18px }
+      #audioTapHint{ font-size:12px; top:10px }
     }
   </style>
 </head>
@@ -112,7 +127,7 @@
     </a>
   </div>
 
-  <div id="fb-root"></div>
+  <div id="audioTapHint" aria-live="polite">Tap anywhere to enable sound</div>
 
   <!-- Construct canvas -->
   <div id="c2canvasdiv">
@@ -121,7 +136,7 @@
     </canvas>
   </div>
 
-  <!-- Scripts (no Cloudflare Rocket Loader types, no Google Ads) -->
+  <!-- Scripts (local, no Rocket Loader, no Ads) -->
   <script src="./jquery-3.4.1.min.js"></script>
   <script src="./pathfind.js"></script>
   <script src="./c2runtime.js?v=1"></script>
@@ -137,9 +152,9 @@
       }
     })();
 
-    // Construct 2 boot
+    // Start Construct 2
     (function(){
-      function start(){
+      function boot(){
         try{
           if (typeof jQuery === "undefined") throw new Error("jQuery did not load.");
           if (typeof cr_createRuntime !== "function") throw new Error("Construct runtime did not load (cr_createRuntime missing).");
@@ -149,17 +164,14 @@
           alert("Game failed to start. Open DevTools Console for details.");
         }
       }
-      start();
+      boot();
     })();
 
-    // Pause/resume on tab visibility
+    // Pause/resume on visibility
     (function(){
       function onVisibilityChanged(){
-        if (document.hidden || document.mozHidden || document.webkitHidden || document.msHidden){
-          if (typeof cr_setSuspended === "function") cr_setSuspended(true);
-        } else {
-          if (typeof cr_setSuspended === "function") cr_setSuspended(false);
-        }
+        const hidden = (document.hidden || document.mozHidden || document.webkitHidden || document.msHidden);
+        if (typeof cr_setSuspended === "function") cr_setSuspended(!!hidden);
       }
       document.addEventListener("visibilitychange", onVisibilityChanged, false);
       document.addEventListener("mozvisibilitychange", onVisibilityChanged, false);
@@ -167,22 +179,86 @@
       document.addEventListener("msvisibilitychange", onVisibilityChanged, false);
     })();
 
-    // Service worker registration (only if sw.js exists)
+    // Fix: Service worker registration (no scary console spam if missing)
     (function(){
-      function OnRegisterSWError(e){ console.warn("Failed to register service worker:", e); }
+      function OnRegisterSWError(e){ console.warn("Service worker not registered:", e && e.message ? e.message : e); }
 
       window.C2_RegisterSW = function C2_RegisterSW(){
         if (!navigator.serviceWorker) return;
+
         fetch("./sw.js", { method:"HEAD", cache:"no-store" })
           .then(function(r){
-            if (!r.ok) throw new Error("sw.js missing (HTTP " + r.status + ")");
-            return navigator.serviceWorker.register("./sw.js", { scope:"./" });
+            if (!r.ok) return; // quietly skip if missing
+            return navigator.serviceWorker.register("./sw.js", { scope:"./" })
+              .then(function(reg){ console.log("Registered service worker on " + reg.scope); })
+              .catch(OnRegisterSWError);
           })
-          .then(function(reg){
-            console.log("Registered service worker on " + reg.scope);
-          })
-          .catch(OnRegisterSWError);
+          .catch(function(){ /* ignore */ });
       };
+    })();
+
+    // Canvas fit helper
+    (function(){
+      const canvas = document.getElementById("c2canvas");
+      function fit(){
+        if (!canvas) return;
+        canvas.style.width = "100vw";
+        canvas.style.height = "100vh";
+      }
+      window.addEventListener("resize", fit);
+      window.addEventListener("orientationchange", fit);
+      fit();
+    })();
+
+    // Audio autoplay fix: show hint until first user gesture
+    (function(){
+      const hint = document.getElementById("audioTapHint");
+      let cleared = false;
+
+      function hideHint(){
+        if (cleared) return;
+        cleared = true;
+        if (hint) hint.style.display = "none";
+        window.removeEventListener("pointerdown", onUserGesture, true);
+        window.removeEventListener("keydown", onUserGesture, true);
+        window.removeEventListener("touchstart", onUserGesture, true);
+      }
+
+      function tryResumeAllAudio(){
+        try{
+          if (window.cr_getAudioContext){
+            const ctx = cr_getAudioContext();
+            if (ctx && ctx.state === "suspended" && typeof ctx.resume === "function") ctx.resume();
+          }
+        } catch (e){}
+
+        try{
+          if (window.AudioContext || window.webkitAudioContext){
+            // If C2 created one, resume attempt above is enough.
+          }
+        } catch (e){}
+      }
+
+      function onUserGesture(){
+        tryResumeAllAudio();
+        hideHint();
+      }
+
+      // Show hint only if audio is likely blocked
+      setTimeout(function(){
+        try{
+          if (window.cr_getAudioContext){
+            const ctx = cr_getAudioContext();
+            if (ctx && ctx.state === "suspended"){
+              if (hint) hint.style.display = "block";
+            }
+          }
+        } catch (e){}
+      }, 800);
+
+      window.addEventListener("pointerdown", onUserGesture, true);
+      window.addEventListener("keydown", onUserGesture, true);
+      window.addEventListener("touchstart", onUserGesture, true);
     })();
 
     // Static Menu show/hide with 3 minute return
@@ -201,7 +277,7 @@
       const until = parseInt(localStorage.getItem(KEY)||"0", 10);
       if (until && Date.now() < until){
         if (menu) menu.style.display = "none";
-        setTimeout(show, until - Date.now());
+        setTimeout(show, Math.max(0, until - Date.now()));
       } else {
         show();
       }
@@ -282,31 +358,19 @@
         if (seq.join("") === target.join("")) toggle();
       });
     })();
-
-    // Optional: keep canvas fitting nicely (Construct handles most of this, but this helps some exports)
-    (function(){
-      const canvas = document.getElementById("c2canvas");
-      function fit(){
-        if (!canvas) return;
-        canvas.style.width = "100vw";
-        canvas.style.height = "100vh";
-      }
-      window.addEventListener("resize", fit);
-      window.addEventListener("orientationchange", fit);
-      fit();
-    })();
   </script>
 
   <!-- Hidden SEO block -->
   <div class="seo-hidden" aria-hidden="true">
-    <h1>Pandemic Simulator unblocked</h1>
+    <h1>Plague-Inc. (Pandemic Simulator) unblocked</h1>
     <p>
-      Play Pandemic Simulator unblocked, working at school and Chromebook friendly. This page is part of StaticQuasar931 unblocked games.
+      Play Plague-Inc. (Pandemic Simulator) unblocked, working at school and Chromebook friendly. Fullscreen browser gameplay.
       More unblocked games by StaticQuasar931: https://sites.google.com/view/staticquasar931/gm3z
     </p>
     <p>
-      Keywords: pandemic simulator unblocked, pandemic simulator game unblocked, pandemic simulator school, pandemic simulator working at school,
-      pandemic simulator g@me unblocked, pandemic simulator unbl0cked, staticquasar931, static 931, staticquasar, staticq, staticq931, 931
+      Keywords: plague inc unblocked, pandemic simulator unblocked, plague inc game unblocked, plague inc school, plague inc working at school,
+      pandemic simulator school, pandemic simulator working at school, plague inc g@me unblocked, pandemic simulator g@me unblocked,
+      unbl0cked, unblocked games, school-safe, staticquasar931, static 931, staticquasar, staticq, staticq931, 931
     </p>
   </div>
 </body>
